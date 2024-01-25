@@ -74,7 +74,7 @@ int main() {
             ++namePart;
         }
     }
-    encodedName += '\0'; // Terminating null byte
+    encodedName += '\0'; //null byte
     dnsMessage += encodedName;
 
     // Add query type and query class
