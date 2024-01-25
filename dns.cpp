@@ -1,7 +1,7 @@
 #include <iostream>
-#include <iomanip> // For setw() and setfill()
+#include <iomanip>
 #include <cstring>
-#include <arpa/inet.h>  // For htons()
+#include <arpa/inet.h> 
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
