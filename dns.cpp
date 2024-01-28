@@ -98,7 +98,7 @@ int main() {
     struct sockaddr_in serverAddr;
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(53); // DNS service port
-    serverAddr.sin_addr.s_addr = inet_addr("8.8.8.8"); // Google's DNS server
+    serverAddr.sin_addr.s_addr = inet_addr("8.8.8.8"); // Google DNS server
 
     // Send the DNS message
     ssize_t sentBytes = sendto(sockfd, dnsMessage.data(), dnsMessage.size(), 0,
