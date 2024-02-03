@@ -30,7 +30,7 @@ struct DNSAnswer {
     uint16_t queryClass;
     uint32_t ttl;
     uint16_t dataLength;
-    // Data content (e.g., IP address)
+    // Data content (e.g. IP address)
 };
 
 int main() {
