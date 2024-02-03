@@ -8,6 +8,192 @@
 #include <bits/stdc++.h>
 using namespace std;
 
+void DNSResolver::__init() {
+	dns_init(nullptr, 0);
+
+	ctx_udns = dns_new(nullptr);
+	if (!ctx_udns)
+		throw std::system_error(ENOMEM, std::system_category(), strerror(ENOMEM));
+
+	if (dns_init(ctx_udns, 0) < 0)
+		THROW_ERRNO;
+}
+
+void DNSResolver::__fini() {
+	if (ctx_udns) {
+		fprintf(stderr,"__fini\n");
+		dns_free(ctx_udns);
+		ctx_udns = nullptr;
+	}
+}
+
+void DNSResolver::__open() {
+	if ((fd_udns = dns_open(ctx_udns)) < 0) {
+		THROW_ERRNO;
+	}
+
+	struct sockaddr sa;
+	socklen_t len = sizeof(sa);
+	if (getsockname(fd_udns, &sa, &len))
+		throw std::system_error(std::error_code(errno, std::system_category()), "getsockname");
+
+	asio_socket = std::make_unique<boost::asio::ip::udp::socket>(asio_iosvc,
+								     sa.sa_family == AF_INET ?
+								     boost::asio::ip::udp::v4()
+											     : boost::asio::ip::udp::v6(),
+								     dns_sock(ctx_udns));
+}
+
+void DNSResolver::io_wait_read() {
+	fprintf(stderr,"io_wait_read\n");
+	asio_socket->async_receive(boost::asio::null_buffers(),
+				   boost::bind(&DNSResolver::iocb_read_avail, this));
+}
+
+void DNSResolver::iocb_read_avail() {
+	fprintf(stderr,"iocb_read_avail\n");
+	dns_ioevent(ctx_udns, time(nullptr));
+
+	if (requests_pending)
+		io_wait_read();
+}
+
+void DNSResolver::set_servers(const std::initializer_list<std::string> &__nameservers) {
+	dns_add_serv(ctx_udns, nullptr);
+
+	for (auto &it : __nameservers) {
+		if (dns_add_serv(ctx_udns, it.c_str()) < 0) {
+			THROW_ERRNO;
+		}
+	}
+}
+
+void DNSResolver::post_resolve() {
+	requests_pending++;
+	dns_timeouts(ctx_udns, -1, time(nullptr));
+	io_wait_read();
+}
+
+void DNSResolver::dnscb_a4(struct dns_ctx *ctx, struct dns_rr_a4 *result, void *data) {
+	auto *pd = (std::pair<DNSResolver *, A4Callback> *) data;
+	pd->first->requests_pending--;
+
+	std::vector<boost::asio::ip::address_v4> addrs;
+
+	if (result) {
+		for (uint32_t i = 0; i < result->dnsa4_nrr; i++) {
+			std::array<unsigned char, 4> buf;
+			memcpy(buf.data(), &result->dnsa4_addr[i].s_addr, 4);
+			addrs.emplace_back(buf);
+		}
+
+		std::string_view cname(result->dnsa4_cname);
+		std::string_view qname(result->dnsa4_qname);
+
+		pd->second(DNS_E_NOERROR, addrs, qname, cname, result->dnsa4_ttl);
+		free(result);
+	} else {
+		pd->second(dns_status(pd->first->ctx_udns), addrs, {}, {}, 0);
+	}
+
+	delete pd;
+}
+
+void DNSResolver::dnscb_a6(struct dns_ctx *ctx, struct dns_rr_a6 *result, void *data) {
+	auto *pd = (std::pair<DNSResolver *, A6Callback> *) data;
+	pd->first->requests_pending--;
+
+	std::vector<boost::asio::ip::address_v6> addrs;
+
+	if (result) {
+		for (uint32_t i = 0; i < result->dnsa6_nrr; i++) {
+			std::array<unsigned char, 16> buf;
+			memcpy(buf.data(), &result->dnsa6_addr[i], 16);
+			addrs.emplace_back(buf);
+		}
+
+		std::string_view cname(result->dnsa6_cname);
+		std::string_view qname(result->dnsa6_qname);
+
+		pd->second(DNS_E_NOERROR, addrs, qname, cname, result->dnsa6_ttl);
+		free(result);
+	} else {
+		pd->second(dns_status(pd->first->ctx_udns), addrs, {}, {}, 0);
+	}
+
+	delete pd;
+}
+
+void DNSResolver::dnscb_txt(struct dns_ctx *ctx, struct dns_rr_txt *result, void *data) {
+	auto *pd = (std::pair<DNSResolver *, TXTCallback> *) data;
+	pd->first->requests_pending--;
+
+	if (result) {
+		std::vector<std::string_view> addrs;
+
+		for (uint32_t i = 0; i < result->dnstxt_nrr; i++) {
+			addrs.emplace_back((const char *) result->dnstxt_txt[i].txt, result->dnstxt_txt[i].len);
+		}
+
+		std::string_view cname(result->dnstxt_cname);
+		std::string_view qname(result->dnstxt_qname);
+
+		pd->second(DNS_E_NOERROR, addrs, qname, cname, result->dnstxt_ttl);
+		free(result);
+	} else {
+		pd->second(dns_status(pd->first->ctx_udns), {}, {}, {}, 0);
+	}
+
+	delete pd;
+}
+
+void DNSResolver::dnscb_mx(struct dns_ctx *ctx, struct dns_rr_mx *result, void *data) {
+	auto *pd = (std::pair<DNSResolver *, MXCallback> *) data;
+	pd->first->requests_pending--;
+
+	if (result) {
+		std::vector<MXRecord> addrs;
+
+		for (uint32_t i = 0; i < result->dnsmx_nrr; i++) {
+			addrs.emplace_back(result->dnsmx_mx[i].priority, result->dnsmx_mx[i].name);
+		}
+
+		std::string_view cname(result->dnsmx_cname);
+		std::string_view qname(result->dnsmx_qname);
+
+		pd->second(DNS_E_NOERROR, addrs, qname, cname, result->dnsmx_ttl);
+		free(result);
+	} else {
+		pd->second(dns_status(pd->first->ctx_udns), {}, {}, {}, 0);
+	}
+
+	delete pd;
+}
+
+void DNSResolver::dnscb_srv(struct dns_ctx *ctx, struct dns_rr_srv *result, void *data) {
+	auto *pd = (std::pair<DNSResolver *, SRVCallback> *) data;
+	pd->first->requests_pending--;
+
+	if (result) {
+		std::vector<SRVRecord> addrs;
+
+		for (uint32_t i = 0; i < result->dnssrv_nrr; i++) {
+			auto &r = result->dnssrv_srv[i];
+			addrs.emplace_back(r.priority, r.weight, r.port, r.name);
+		}
+
+		std::string_view cname(result->dnssrv_cname);
+		std::string_view qname(result->dnssrv_qname);
+
+		pd->second(DNS_E_NOERROR, addrs, qname, cname, result->dnssrv_ttl);
+		free(result);
+	} else {
+		pd->second(dns_status(pd->first->ctx_udns), {}, {}, {}, 0);
+	}
+
+	delete pd;
+}
+
 struct DNSHeader {
     uint16_t id;
     uint16_t flags;
