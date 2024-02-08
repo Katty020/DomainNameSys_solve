@@ -18,15 +18,6 @@ void DNSResolver::__init() {
 	if (dns_init(ctx_udns, 0) < 0)
 		THROW_ERRNO;
 }
-// void DNSResolver::set_servers(const std::initializer_list<std::string> &__nameservers) {
-// 	dns_add_serv(ctx_udns, nullptr);
-
-// 	for (auto &it : __nameservers) {
-// 		if (dns_add_serv(ctx_udns, it.c_str()) < 0) {
-// 			THROW_ERRNO;
-// 		}
-// 	}
-// }
 
 void DNSResolver::__fini() {
 	if (ctx_udns) {
