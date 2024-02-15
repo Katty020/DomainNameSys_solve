@@ -317,6 +317,19 @@ int main() {
     }
     cout << std::endl;
 
+	// if (receivedBytes == -1) {
+ //        perror("recvkiya");
+ //        close(sockfd);
+ //        return 1;
+ //    }
+
+ //    // Process the response data and print it out
+ //    for (ssize_t i = 0; i < receivedBytes; ++i) {
+ //        cout << hex << setw(2) << setfill('0')
+ //                  << static_cast<int>(static_cast<uint8_t>(responseBuffer[i]));
+ //    }
+ //    cout << std::endl;
+
     // Close the socket
     close(sockfd);
     return 0;
