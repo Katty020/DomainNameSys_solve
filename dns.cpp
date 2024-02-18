@@ -6,7 +6,6 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <bits/stdc++.h>
-using namespace std;
 
 void DNSResolver::__init() {
 	dns_init(nullptr, 0);
