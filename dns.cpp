@@ -309,7 +309,7 @@ int main() {
         return 1;
     }
 
-    // Process the response data and print it out
+    // Process the response data and print it out.
     for (ssize_t i = 0; i < receivedBytes; ++i) {
         cout << hex << setw(2) << setfill('0')
                   << static_cast<int>(static_cast<uint8_t>(responseBuffer[i]));
