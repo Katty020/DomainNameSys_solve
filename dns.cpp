@@ -43,8 +43,7 @@ void DNSResolver::__open() {
 								     dns_sock(ctx_udns));
 	// struct sockaddr sa;
 	// socklen_t len = sizeof(sa);
-	// if (getsockname(fd_udns, &sa, &len))
-	// 	throw std::system_error(std::error_code(errno, std::system_category()), "getsockname");
+	
 
 	
 }
