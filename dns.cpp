@@ -41,6 +41,16 @@ void DNSResolver::__open() {
 								     boost::asio::ip::udp::v4()
 											     : boost::asio::ip::udp::v6(),
 								     dns_sock(ctx_udns));
+	// struct sockaddr sa;
+	// socklen_t len = sizeof(sa);
+	// if (getsockname(fd_udns, &sa, &len))
+	// 	throw std::system_error(std::error_code(errno, std::system_category()), "getsockname");
+
+	// asio_socket = std::make_unique<boost::asio::ip::udp::socket>(asio_iosvc,
+	// 							     sa.sa_family == AF_INET ?
+	// 							     boost::asio::ip::udp::v4()
+	// 										     : boost::asio::ip::udp::v6(),
+	// 							     dns_sock(ctx_udns));
 }
 
 void DNSResolver::io_wait_read() {
